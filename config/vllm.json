@@ -1,0 +1,8 @@
+{
+  "policy": "kubeai",
+  "poll_interval": 2,
+  "stale_after": 10,
+  "replicas": [
+    {"name": "local-4070", "url": "http://127.0.0.1:8000", "models": ["Qwen/Qwen3-0.6B"], "capacity": 4, "token_seconds": 0.01, "prefill_seconds": 0.02, "max_model_len": 2048}
+  ]
+}

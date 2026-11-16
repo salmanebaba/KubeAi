@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeai-metrics
+spec:
+  clusterIP: None
+  selector: {app: kubeai-backend}
+  ports: [{name: http, port: 8000, targetPort: http}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubeai-prometheus
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 2Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeai-prometheus
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: kubeai-prometheus}
+  template:
+    metadata:
+      labels: {app: kubeai-prometheus}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 65534, runAsGroup: 65534, fsGroup: 65534, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+          args: [--config.file=/etc/prometheus/prometheus.yml]
+          ports: [{name: http, containerPort: 9090}]
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          readinessProbe: {httpGet: {path: /-/ready, port: http}, periodSeconds: 5}
+          volumeMounts:
+            - {name: config, mountPath: /etc/prometheus, readOnly: true}
+            - {name: data, mountPath: /prometheus}
+      volumes:
+        - {name: config, configMap: {name: kubeai-prometheus}}
+        - {name: data, persistentVolumeClaim: {claimName: kubeai-prometheus}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeai-prometheus
+spec:
+  selector: {app: kubeai-prometheus}
+  ports: [{name: http, port: 9090, targetPort: http}]

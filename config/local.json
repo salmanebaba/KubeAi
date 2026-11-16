@@ -1,0 +1,11 @@
+{
+  "policy": "kubeai",
+  "poll_interval": 1,
+  "stale_after": 5,
+  "max_inflight": 128,
+  "weights": {"queue": 1.0, "service": 1.0, "kv": 0.1, "memory": 0.05},
+  "replicas": [
+    {"name": "replica-a", "url": "http://127.0.0.1:8001", "models": ["Qwen/Qwen3-0.6B"], "capacity": 2, "token_seconds": 0.004, "prefill_seconds": 0.01},
+    {"name": "replica-b", "url": "http://127.0.0.1:8002", "models": ["Qwen/Qwen3-0.6B"], "capacity": 2, "token_seconds": 0.001, "prefill_seconds": 0.01}
+  ]
+}

@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 2s
+  scrape_timeout: 1s
+storage:
+  tsdb:
+    retention:
+      time: 2d
+      size: 512MB
+scrape_configs:
+  - job_name: kubeai
+    static_configs:
+      - targets: [kubeai-router:8080]
+  - job_name: vllm-emulator
+    dns_sd_configs:
+      - names: [kubeai-metrics.kubeai.svc.cluster.local]
+        type: A
+        port: 8000

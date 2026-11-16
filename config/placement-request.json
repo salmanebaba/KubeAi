@@ -1,0 +1,8 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "gpus": 1,
+  "gpu_memory_mib": 6144,
+  "headroom_mib": 512,
+  "cpu_millis": 1000,
+  "ram_mib": 4096
+}

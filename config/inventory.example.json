@@ -1,0 +1,7 @@
+{
+  "description": "Synthetic snapshot for offline placement demonstration. Replay with --at 1000. Live recommendations require fresh, accurate inventory.",
+  "nodes": [
+    {"name": "gpu-large", "observed_at_unix": 1000, "ready": true, "unschedulable": false, "untolerated_taints": [], "free_cpu_millis": 8000, "free_ram_mib": 32768, "compatible_models": ["Qwen/Qwen3-0.6B"], "cached_models": [], "gpus": [{"id": "synthetic-large", "allocated": false, "total_mib": 24576, "free_mib": 24576}]},
+    {"name": "gpu-small", "observed_at_unix": 1000, "ready": true, "unschedulable": false, "untolerated_taints": [], "free_cpu_millis": 4000, "free_ram_mib": 16384, "compatible_models": ["Qwen/Qwen3-0.6B"], "cached_models": ["Qwen/Qwen3-0.6B"], "gpus": [{"id": "synthetic-small", "allocated": false, "total_mib": 8188, "free_mib": 8188}]}
+  ]
+}

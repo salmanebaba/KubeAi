@@ -1,0 +1,38 @@
+# Single physical GPU baseline. This file is independent of compose.yaml.
+services:
+  vllm:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3}
+    ipc: host
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+    command:
+      - --model
+      - Qwen/Qwen3-0.6B
+      - --revision
+      - ${MODEL_REVISION:-c1899de289a04d12100db370d81485cdf75e47ca}
+      - --max-model-len
+      - "2048"
+      - --gpu-memory-utilization
+      - "0.75"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 60
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    network_mode: host
+    command: [--config.file=/etc/prometheus/prometheus.yml, --web.listen-address=127.0.0.1:9090]
+    volumes:
+      - ./monitoring/prometheus.hardware.yml:/etc/prometheus/prometheus.yml:ro
+      - hardware-prometheus-data:/prometheus
+volumes:
+  hardware-prometheus-data:

@@ -1,0 +1,9 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "messages": [
+    {"role": "user", "content": "In two sentences, explain why GPUs help with LLM inference."}
+  ],
+  "chat_template_kwargs": {"enable_thinking": false},
+  "temperature": 0,
+  "max_tokens": 64
+}

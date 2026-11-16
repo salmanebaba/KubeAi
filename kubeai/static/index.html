@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111a24">
+  <title>KubeAI · Inference observatory</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="/" aria-label="KubeAI home"><span class="mark">K</span> KubeAI <span class="tag">RESEARCH PROTOTYPE</span></a>
+      <span class="connection" id="connection" role="status">Connecting…</span>
+    </header>
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow">OBSERVE → DECIDE → ACT → MEASURE</p><h1>Every request.<br>A measurable decision.</h1>
+          <p class="lede">Inspect replica health and compare routing experiments with their baselines. Evidence first, hardware claims only when measured.</p></div>
+        <div class="control"><label for="api-key">Router bearer token <span>(if configured)</span></label><div class="inline"><input id="api-key" type="password" autocomplete="off" placeholder="Kept only in this page’s memory"><button id="refresh" type="button">Refresh ↗</button></div><p id="updated" class="muted">Waiting for measurements</p></div>
+      </section>
+      <p id="error" class="notice" role="alert" hidden></p>
+      <section class="stats" aria-label="Current router status">
+        <article><span>ACTIVE POLICY</span><strong id="policy">—</strong><small>Configured router policy</small></article>
+        <article><span>HEALTHY REPLICAS</span><strong id="healthy">—</strong><small>Fresh health + model probes</small></article>
+        <article><span>IN FLIGHT</span><strong id="inflight">—</strong><small>Local request reservations</small></article>
+        <article><span>RECORDED RUNS</span><strong id="run-count">—</strong><small>Latest 200 run summaries</small></article>
+      </section>
+      <section class="panel"><div class="section-head"><div><p class="eyebrow">01 / LIVE TOPOLOGY</p><h2>Replica fleet</h2></div><span class="muted">Model availability is verified at the endpoint</span></div><div id="replicas" class="replicas"></div></section>
+      <section class="panel" aria-labelledby="endpoints-title">
+        <div class="section-head"><div><p class="eyebrow">ENDPOINT CONFIGURATION</p><h2 id="endpoints-title">Connect deployed vLLM replicas</h2></div><span class="muted">Local or remote vLLM servers</span></div>
+        <p class="muted">Use each server's base URL, without <code>/v1</code>. Test a connection to verify its models before applying. Apply saves the endpoints; health checks determine when they receive requests.</p>
+        <form id="endpoints-form">
+          <fieldset id="endpoints-fields" disabled>
+            <div id="endpoint-editor" class="endpoint-editor"></div>
+            <div class="endpoint-actions">
+              <button id="endpoint-add" class="secondary" type="button">Add endpoint</button>
+              <button id="endpoint-reload" class="secondary" type="button">Reload saved</button>
+              <button id="endpoint-apply" type="submit" disabled>Apply endpoints</button>
+            </div>
+          </fieldset>
+        </form>
+        <p id="endpoint-benchmark-lock" class="muted" hidden>Benchmark running. Endpoint changes are locked until it finishes.</p>
+        <p id="endpoint-status" class="muted endpoint-status" role="status" aria-live="polite">Loading saved endpoints…</p>
+      </section>
+      <section class="panel" aria-labelledby="benchmark-title">
+        <div class="section-head"><div><p class="eyebrow">EXPERIMENT SETUP</p><h2 id="benchmark-title">Run a benchmark</h2></div><button id="benchmark-inputs-reload" class="secondary" type="button">Reload inputs</button></div>
+        <p class="muted">Send requests to the deployed replicas shown above. The selected policy is used during this run, then the previous policy is restored. Each run keeps its inputs and configuration.</p>
+        <form id="benchmark-form">
+          <fieldset id="benchmark-fields" disabled>
+            <div class="benchmark-grid">
+              <label>Workload mode<select id="benchmark-mode"><option value="closed_loop">Closed-loop workers</option><option value="fixed_arrival">Saved arrival trace</option></select></label>
+              <label>Routing policy<select id="benchmark-policy"><option value="round_robin">Round-robin</option><option value="capacity">Capacity</option><option value="kubeai">KubeAI</option></select></label>
+              <label>Endpoint environment label<select id="benchmark-environment"><option value="unverified">Unverified</option><option value="hardware">Hardware</option><option value="emulator">Emulator</option></select></label>
+              <label id="benchmark-model-field">Model<select id="benchmark-model" required></select></label>
+              <label id="benchmark-workers-field">Workers<input id="benchmark-workers" type="number" min="1" max="128" step="1" value="4" required></label>
+              <label id="benchmark-duration-field">Duration (seconds)<input id="benchmark-duration" type="number" min="0.05" max="300" step="0.05" value="30" required></label>
+              <label id="benchmark-seed-field">Input seed<input id="benchmark-seed" type="number" min="0" max="2147483647" step="1" value="42" required></label>
+              <label id="benchmark-trace-field" hidden>Saved trace<select id="benchmark-trace" required disabled></select></label>
+              <label id="benchmark-inflight-field" hidden>Maximum in-flight requests<input id="benchmark-inflight" type="number" min="1" max="128" step="1" value="128" required disabled></label>
+              <label>Warm-up requests per model<input id="benchmark-warmup" type="number" min="0" max="20" step="1" value="2" required></label>
+            </div>
+            <p id="benchmark-trace-info" class="muted" hidden></p>
+            <p class="muted">The environment label describes your endpoints; it does not switch them or start a simulation. Closed-loop uses seeded varied prompts. Trace replay uses the exact saved inputs and arrival times.</p>
+            <details class="benchmark-provenance"><summary>Provenance and local GPU samples</summary>
+              <div class="benchmark-grid">
+                <label>Declared model revision (optional)<input id="benchmark-model-revision" maxlength="512" placeholder="unknown"></label>
+                <label>Declared serving image digest (optional)<input id="benchmark-image-digest" maxlength="512" placeholder="unknown"></label>
+              </div>
+              <label class="benchmark-toggle"><input id="benchmark-gpu" type="checkbox" disabled><span>Sample NVIDIA GPU utilization, VRAM and power on this router host</span></label>
+              <p class="muted">Local samples are available with the Hardware label. Power readings estimate gross GPU energy during the measured run, excluding warm-up. They do not measure GPUs on remote endpoints. Missing or incomplete power coverage remains visible.</p>
+              <p class="muted">Leaving model revision or image digest unknown keeps hardware runs out of Recorded provenance comparisons. Eligible runs remain available in Exploratory comparison with a missing-provenance warning.</p>
+            </details>
+            <p id="benchmark-preview" class="benchmark-preview"></p>
+            <p id="benchmark-draft-note" class="muted" hidden>Apply or discard your endpoint draft before starting a benchmark.</p>
+            <button id="benchmark-run" type="submit">Run benchmark</button>
+          </fieldset>
+        </form>
+        <p id="benchmark-options-status" class="muted" role="status"></p>
+        <div class="benchmark-job" aria-live="polite"><span id="benchmark-job-status" class="pill">Idle</span><p id="benchmark-job-message" class="muted">No dashboard benchmark has started.</p><p id="benchmark-job-output" class="muted"></p></div>
+      </section>
+      <section class="panel"><div class="section-head"><div><p class="eyebrow">02 / SAVED MEASUREMENTS</p><h2>Compare routing policies</h2></div><div class="filters"><label>Environment<select id="environment"><option value="all">All environments</option><option value="emulator">Emulator</option><option value="hardware">Hardware</option><option value="unverified">Unverified</option></select></label><label>Scenario / mode<select id="scenario"><option value="all">All scenarios</option></select></label></div></div>
+        <div class="comparison-controls">
+          <label class="comparison-picker">Comparison mode<select id="comparison-mode"><option value="recorded">Recorded provenance</option><option value="exploratory">Exploratory comparison</option></select></label>
+          <label class="comparison-picker">Recorded experiment setup<select id="comparison"><option value="individual">Individual runs — no averaging</option></select></label>
+        </div>
+        <div id="exploratory-availability" class="notice comparison-availability" role="status" hidden><p id="exploratory-availability-text"></p><button id="show-exploratory" class="secondary" type="button">View latest exploratory setup</button></div>
+        <p id="comparison-warning" class="notice" role="status" hidden></p>
+        <p id="comparison-note" class="muted">Individual runs stay separate. Select a matching setup to compare policies.</p>
+        <div id="chart-legend" class="chart-legend" hidden><span><i class="legend-bar" aria-hidden="true"></i> Bar: policy mean</span><span><i class="legend-point" aria-hidden="true"></i> Dot: one run · select to inspect</span><span>Every axis starts at zero</span></div>
+        <p id="comparison-outcomes" class="muted" hidden></p>
+        <div id="chart" class="charts"></div>
+        <details id="comparison-details" class="measurement-details" hidden>
+          <summary>Show detailed measurements</summary>
+          <div id="comparison-table-wrapper" class="table-scroll" hidden><table><thead><tr><th>Policy</th><th>Runs</th><th>Mean P50</th><th>Mean P95</th><th>P95 range</th><th>Mean TTFT P95</th><th>Mean req/s</th><th>Responses</th><th>Failures</th><th>Drops</th><th>Token-limited</th></tr></thead><tbody id="comparison-rows"></tbody></table></div>
+          <div id="comparison-energy-wrapper" class="energy-section" hidden>
+            <h3>GPU energy estimates</h3>
+            <div class="table-scroll"><table><thead><tr><th>Policy</th><th>Complete energy runs</th><th>Mean GPU power</th><th>Mean energy</th><th>Mean J/completed request</th><th>Mean J/1000 output tokens</th></tr></thead><tbody id="comparison-energy-rows"></tbody></table></div>
+            <p class="muted">Means require complete power coverage for every included run. Normalized energy also needs valid request/token counts. Gross measurements cover all physical GPUs on the benchmark host once each; other GPU activity and idle power are included. No energy ranking is inferred.</p>
+          </div>
+        </details>
+        <p class="muted">Dots show observed per-run values, not confidence intervals. Missing values remain unavailable. Matching recorded settings alone does not establish a performance advantage. Emulator measurements are synthetic.</p>
+      </section>
+      <section class="panel"><div class="section-head"><div><p class="eyebrow">03 / EXPERIMENT LOG</p><h2>Recorded runs</h2></div><span class="muted">Each row retains its own measurement context</span></div><div class="table-scroll"><table><thead><tr><th>Run / scenario</th><th>Policy</th><th>Environment</th><th>Recorded setup</th><th>Responses</th><th>P50</th><th>P95</th><th>TTFT P95</th><th>Req/s</th><th>Failures</th><th>Drops</th><th>Token-limited</th><th>GPU J/request</th><th>Power coverage</th><th>Details</th></tr></thead><tbody id="runs"></tbody></table></div><p class="muted">Responses include token-limit completions. Failures include client drops; drops are also shown separately as a subset. Unknown measurements are never replaced with zero.</p><p id="empty" class="empty">No runs yet.</p>
+        <div id="detail" class="detail" hidden>
+          <h3 id="detail-title">Run details</h3><p id="detail-note" class="muted"></p>
+          <dl id="detail-context" class="run-context"></dl>
+          <section aria-labelledby="detail-replicas-title">
+            <h4 id="detail-replicas-title">Requests by replica</h4>
+            <p id="detail-replicas-status" class="muted" role="status"></p>
+            <div class="table-scroll"><table><thead><tr><th>Replica</th><th>Recorded requests / share</th><th>Responses</th><th>P50</th><th>P95</th><th>TTFT P95</th><th>Latency samples</th><th>TTFT samples</th><th>Failures</th><th>Drops</th><th>Token-limited</th></tr></thead><tbody id="detail-replicas"></tbody></table></div>
+            <p class="muted">Shares use all recorded requests, including failures and client drops. Missing replica metadata stays separate. Equal request counts alone do not establish routing efficiency.</p>
+          </section>
+          <section class="energy-section" aria-labelledby="detail-energy-title">
+            <h4 id="detail-energy-title">GPU energy estimate</h4>
+            <p id="detail-energy-status" class="muted"></p>
+            <dl id="detail-energy" class="run-context"></dl>
+          </section>
+          <div id="detail-gpu" class="replicas"></div>
+          <details><summary>Recorded summary and derived context</summary><pre id="detail-body"></pre></details>
+        </div>
+      </section>
+    </main>
+    <footer><span>KubeAI / inference orchestration lab</span><span>Sampled peaks ≠ continuous peaks · Truncations count separately</span></footer>
+  </div>
+</body>
+</html>
